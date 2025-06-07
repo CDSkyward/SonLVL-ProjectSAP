@@ -14,7 +14,7 @@ jobs:
        - name: Move artifacts
          run: |
            mkdir artifacts
-           Move-Item -Path ".\*" -Destination "./artifacts"
+           Move-Item -Path ".\*" -Destination "./artifacts" -Exclude "artifacts"
        - name: Upload artifacts
          uses: actions/upload-artifact@v4
          with:
