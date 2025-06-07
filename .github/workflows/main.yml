@@ -12,10 +12,9 @@ jobs:
          run: |
           msbuild SonLVL-RSDK.sln /p:Configuration=Release
        - name: Move artifacts
-         working-directory: ./SonLVL/bin/Release
          run: |
            mkdir artifacts
-           Move-Item -Path ".\*" -Destination "./artifacts" -Exclude "artifacts"
+           Move-Item -Path ".\SonLVL\bin\Release\*" -Destination "./artifacts" -Exclude "artifacts"
        - name: Upload artifacts
          uses: actions/upload-artifact@v4
          with:
