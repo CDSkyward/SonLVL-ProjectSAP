@@ -20,4 +20,13 @@ jobs:
          with:
            name: SonLVL-ProjectSAP
            path: artifacts
+       - name: Move artifacts for API
+         run: |
+           mkdir artifacts
+           Move-Item -Path ".\SonLVLAPI\bin\Release\*" -Destination "./artifacts" -Exclude "artifacts"
+       - name: Upload artifacts for API
+         uses: actions/upload-artifact@v4
+         with:
+           name: SonLVL-ProjectSAP
+           path: artifacts
     
