@@ -257,8 +257,8 @@ namespace SonicRetro.SonLVL.API
 			}
 			else
 			{
-				NewTiles = new BitmapBits[0x800];
-				for (int i = 0; i < 0x800; i++)
+				NewTiles = new BitmapBits[0x400];
+				for (int i = 0; i < 0x400; i++)
 					NewTiles[i] = new BitmapBits(16, 16);
 			}
 			NewChunks = ReadFile<Tiles128x128>(stgfol + "128x128Tiles.bin");
@@ -393,8 +393,8 @@ namespace SonicRetro.SonLVL.API
 			}
 			else
 			{
-				NewTiles = new BitmapBits[0x800];
-				for (int i = 0; i < 0x800; i++)
+				NewTiles = new BitmapBits[0x400];
+				for (int i = 0; i < 0x400; i++)
 					NewTiles[i] = new BitmapBits(16, 16);
 			}
 		}
