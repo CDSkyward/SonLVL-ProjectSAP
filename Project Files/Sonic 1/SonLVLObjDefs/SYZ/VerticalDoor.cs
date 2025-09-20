@@ -1,27 +1,24 @@
 using SonicRetro.SonLVL.API;
-using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Drawing;
 
-namespace S2ObjectDefinitions.MPZ
+namespace S1ObjectDefinitions.SYZ
 {
-	class SmallPiston : ObjectDefinition
+	class VerticalDoor : ObjectDefinition
 	{
 		private Sprite sprite;
 		private Sprite debug;
 		
 		public override void Init(ObjectData data)
 		{
-			sprite = new Sprite(LevelData.GetSpriteSheet("MPZ/Objects.gif").GetSection(1, 70, 32, 64), -16, -32);
+			sprite = new Sprite(LevelData.GetSpriteSheet("SYZ/Objects.gif").GetSection(119, 34, 32, 64), -16, -32);
 			
-			BitmapBits bitmap = new BitmapBits(sprite.Width, sprite.Height);
-			bitmap.DrawRectangle(6, 0, 0, sprite.Width-1, sprite.Height-1); // LevelData.ColorWhite
-			debug = new Sprite(bitmap, sprite.X, sprite.Y + 64);
-			
-			bitmap = new BitmapBits(2, 65);
-			bitmap.DrawLine(6, 0, 0, 0, 64); // LevelData.ColorWhite
-			debug = new Sprite(debug, new Sprite(bitmap));
+			// Draw a line of where the Door will be when it opens
+			BitmapBits bitmap = new BitmapBits(33, 97);
+			bitmap.DrawRectangle(6, 0, 0, 32, 64);
+			bitmap.DrawLine(6, 16, 32, 16, 32 + 64);
+			debug = new Sprite(bitmap, -16, -96);
 		}
 		
 		public override ReadOnlyCollection<byte> Subtypes
@@ -33,17 +30,17 @@ namespace S2ObjectDefinitions.MPZ
 		{
 			return null;
 		}
-		
+
 		public override Sprite Image
 		{
 			get { return sprite; }
 		}
-		
+
 		public override Sprite SubtypeImage(byte subtype)
 		{
 			return sprite;
 		}
-		
+
 		public override Sprite GetSprite(ObjectEntry obj)
 		{
 			return sprite;

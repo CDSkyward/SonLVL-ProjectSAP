@@ -90,6 +90,13 @@ namespace SonicRetro.SonLVL.API
 		public static void LoadGame(string filename)
 		{
 			Log($"Opening game \"{filename}\"...");
+			Game = GameInfo.Load(filename);
+
+			// For files where RSDKVer is missing entirely, it's likely not a valid Project File in the first place
+			// (the user might've just opened their settings.ini on accident instead or something)
+			if (Game.RSDKVer == EngineVersion.Invalid)
+				throw new FormatException("Game Version not found, is this a valid game ini?");
+
 			GamePath = Path.GetFullPath(filename);
 			Game = IniSerializer.Deserialize<GameInfo>(filename);
 			Directory.SetCurrentDirectory(Path.GetDirectoryName(GamePath));
@@ -101,20 +108,29 @@ namespace SonicRetro.SonLVL.API
 			if (File.Exists(dataFile))
 			{
 				if (Game.IsV5U)
+				{
+					Log($"Using RSDKv5u DataFile {dataFile}...");
 					DataFile = new RSDKv5.DataPack(dataFile, rsdk_files_list);
+				}
 				else
 					switch (Game.RSDKVer)
 					{
 						case EngineVersion.V4:
+							Log($"Using RSDKv4 DataFile {dataFile}...");
 							DataFile = new RSDKv4.DataPack(dataFile, rsdk_files_list);
 							break;
 						case EngineVersion.V3:
+							Log($"Using RSDKv3 DataFile {dataFile}...");
 							DataFile = new RSDKv3.DataPack(dataFile);
 							break;
 					}
 			}
 			else
+			{
+				Log($"No DataFile found at {dataFile}, assuming Data Folder mode in folder {EXEFolder}...");
 				DataFile = new DataFolder(EXEFolder);
+			}
+
 			ModFolder = null;
 			switch (Game.RSDKVer)
 			{
@@ -228,7 +244,7 @@ namespace SonicRetro.SonLVL.API
 		{
 			System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
 			stopwatch.Start();
-			Log("Loading " + stage.name + "...");
+			Log("Loading level " + stage.name + "...");
 			StageInfo = stage;
 			string stgfol = $"Data/Stages/{stage.folder}/";
 			switch (Game.RSDKVer)
@@ -260,6 +276,8 @@ namespace SonicRetro.SonLVL.API
 				NewTiles = new BitmapBits[0x400];
 				for (int i = 0; i < 0x400; i++)
 					NewTiles[i] = new BitmapBits(16, 16);
+
+				NewPalette.Fill(NewPalette[0], 128, 128);
 			}
 			NewChunks = ReadFile<Tiles128x128>(stgfol + "128x128Tiles.bin");
 			Collision = ReadFile<TileConfig>(stgfol + "CollisionMasks.bin");
@@ -305,7 +323,7 @@ namespace SonicRetro.SonLVL.API
 						if (Background.layers[i].lineScroll[y] != lastind)
 						{
 							lastind = Background.layers[i].lineScroll[y];
-							BGScroll[i].Add(new ScrollData(y, info[lastind]));
+							BGScroll[i].Add(new ScrollData(y, info[(lastind < info.Count) ? lastind : info.Count - 1]));
 						}
 				}
 				else
@@ -396,6 +414,8 @@ namespace SonicRetro.SonLVL.API
 				NewTiles = new BitmapBits[0x400];
 				for (int i = 0; i < 0x400; i++)
 					NewTiles[i] = new BitmapBits(16, 16);
+
+				NewPalette.Fill(NewPalette[0], 128, 128);
 			}
 		}
 
@@ -416,7 +436,7 @@ namespace SonicRetro.SonLVL.API
 					NewPalette[(l * 16) + c + 96] = StageConfig.stagePalette.colors[l][c].ToSystemColor();
 			foreach (var item in NewTiles)
 				item.Clear();
-			NewPalette.Fill(Color.Black, 128, 128);
+			NewPalette.Fill(NewPalette[0], 128, 128);
 			NewChunks = new Tiles128x128();
 			Collision = new TileConfig();
 			switch (Game.RSDKVer)
@@ -574,24 +594,87 @@ namespace SonicRetro.SonLVL.API
 						break;
 				}
 			}
+
+			// Let's make sure the stage folder exists within the mod, before anything else
 			Directory.CreateDirectory(Path.Combine(ModFolder, "Data/Stages", StageInfo.folder));
+			
+			// First, let's save the StageConfig
 			for (int i = 0; i < 32; i++)
 				StageConfig.stagePalette.colors[i / StageConfig.stagePalette.colors[0].Length][i % StageConfig.stagePalette.colors[0].Length] = new Palette.Color(NewPalette[i + 96].R, NewPalette[i + 96].G, NewPalette[i + 96].B);
 			SaveFile("StageConfig.bin", fn => StageConfig.Write(fn));
-			BitmapBits tiles = new BitmapBits(16, NewTiles.Length * 16);
-			for (int i = 0; i < NewTiles.Length; i++)
-				tiles.DrawBitmap(NewTiles[i], 0, i * 16);
-			SaveFile("16x16Tiles.gif", fn =>
+
+			// Next, let's do the stage's 16x16Tiles.gif
+			// The Bitmap.Save implementation in Mono (in the context of running SonLVL-RSDK on Linux) is very prone to causing issues when saving the stage tiles gif
+			// (Namely, instead of saving the gif with a global palette, it instead assigns the palette to the "first frame" in the gif instead, which RSDK doesn't like..)
+			// Because of that, we wanna use the existing RSDKv3_4.Gif writer instead, if necessary
+
+			// This is noticably slower than using the standard Bitmap class, which is why we only wanna resort to it when we have to..
+			if (IsMonoRuntime)
 			{
-				Color[] palette = (Color[])NewPalette.Clone();
-				palette.Fill(NewPalette[0], 1, 95);
-				using (Bitmap bmp = tiles.ToBitmap(palette))
-					bmp.Save(fn, ImageFormat.Gif);
-			});
+				Gif tilebmp = new Gif
+				{
+					width = 16,
+					height = (ushort)(NewTiles.Length * 16)
+				};
+
+				// okay so tbh i think FromSystemColor is supposed to be static, but it isn't, so..
+				// pardon the odd synatx, sorry!--
+				tilebmp.palette[0] = tilebmp.palette[0].FromSystemColor(NewPalette[0]);
+
+				// (note that Palette.Color is a class and not a struct, but since we immediatly discard this gif it's okay to do this--)
+				tilebmp.palette.Fill(tilebmp.palette[0], 1, 95);
+
+				for (int i = 96; i < 256; i++)
+					tilebmp.palette[i] = tilebmp.palette[i].FromSystemColor(NewPalette[i]);
+
+				for (int i = 0; i < NewTiles.Length; i++)
+					Array.Copy(NewTiles[i].Bits, 0, tilebmp.pixels, i * 256, 256);
+
+				SaveFile("16x16Tiles.gif", fn => tilebmp.Write(fn));
+			}
+			else
+			{
+				// We're just on Windows, so it's okay to use the standard Bitmap class to save
+				// Compared to the RSDKv3_4.Gif method, this is much faster, so we choose to stick with this when possible
+
+				BitmapBits tiles = new BitmapBits(16, NewTiles.Length * 16);
+				for (int i = 0; i < NewTiles.Length; i++)
+					tiles.DrawBitmap(NewTiles[i], 0, i * 16);
+
+				SaveFile("16x16Tiles.gif", fn =>
+				{
+					Color[] palette = (Color[])NewPalette.Clone();
+					palette.Fill(NewPalette[0], 1, 95);
+					using (Bitmap bmp = tiles.ToBitmap(palette))
+						bmp.Save(fn, ImageFormat.Gif);
+				});
+			}
+
 			SaveFile("128x128Tiles.bin", fn => NewChunks.Write(fn));
 			SaveFile("CollisionMasks.bin", fn => Collision.Write(fn));
+
+			// Now, let's save the Backgrounds.bin file
+			// The tilelayer part of it is simple enough, but for scrolling, we need to reconstruct the entire list
+			// (this note fits in both LoadLevel as well as here, but) This can cause some issues with scripts that directly access parallax indexes
+			// Namely:
+			// - Because the list gets reconstructed, indexes may be shuffled around
+			// - This doesn't only matter when creating new zones, but even just opening an S1 Special Stage, making no changes, and saving it is enough to break the background effects
+			// - However.. I'm not sure what a good solution would be? In the aforementioned example, there are several duplicate hParallax
+			//    entries, so even if they're different in the script's eyes.. *we* don't know that, nor do we have any way to find out..
+			// - Another notable example is HTZ, where the Earthquakes also break when opening the level and resaving it in SonLVL-RSDK with no extra changes
+			// - The "ForegroundDeformation" somewhat alleviates this problem in a roundabout way, where if an HScroll layer has 1.0 parallaxFactor, 0.0 scrollSpeed, and matches ForegroundDeformation, then
+			//    It will use hParallax[0] all the time, no matter what other parallax there is
+			// - However.. that's still a different index than the script expects, which is hParallax[20]...
+			// - I'm.. not quite sure what the best solution to this problem is? Should we just try and preserve the original indexes all the time where possible? But.. how do we handle editing, then?
+			// So... just gonna leave this note here for future me to come back to, I suppose..
+			// TODO: fix it ig idk tbh
+
+			// Should already be cleared, but let's go ahead and clear 'em again anyways just in case
 			Background.hScroll.Clear();
 			Background.vScroll.Clear();
+
+			// First off, let's add our ForegroundDeformation parallax index, since the FG uses parallax index 0
+			// (We add it even when it's false, since there are cases where FG doesn't deform while BG[0] does, or vice versa)
 			switch (Game.RSDKVer)
 			{
 				case EngineVersion.V3:
@@ -601,6 +684,8 @@ namespace SonicRetro.SonLVL.API
 					Background.hScroll.Add(new RSDKv4.Backgrounds.ScrollInfo() { deform = ForegroundDeformation } );
 					break;
 			}
+
+			// Now, let's go through the 8 layers and rebuild that scrolling list!-
 			for (int i = 0; i < 8; i++)
 			{
 				int height;
@@ -618,6 +703,7 @@ namespace SonicRetro.SonLVL.API
 					default:
 						continue;
 				}
+
 				Background.layers[i].lineScroll = new byte[height];
 				byte scrind = 0;
 				int datind = 0;
@@ -635,18 +721,37 @@ namespace SonicRetro.SonLVL.API
 								si = BGScroll[i][datind++].GetInfoV4();
 								break;
 						}
+						
+						// Now, let's match that ScrollData and see if we can find a matching entry in the hScroll/vScroll arrays
+						// Normally, we'd like to merge all identical entries in the arrays..
 						int tmpind = scrlist.FindIndex(a => si.Equal(a));
+
+						// ..However, if this scroll line is identical to the very previous one, then..
+						if (tmpind == scrind)
+						{
+							// Instead of merging the two together, let's keep 'em separate
+							// (So that it doesn't appear as if the new one just disappears, also relevant for when scroll indexes are controlled by script)
+							// (Not a *complete* fix for the above TODO, but it still helps at least a little!..)
+							tmpind = -1;
+						}
+
 						if (tmpind == -1)
 						{
+							// Either we don't have an existing matching scroll entry, or we're intentionally trying to keep ourselves separate
+							// Whatever the case is, let's go ahead and make a new entry!
 							tmpind = scrlist.Count;
 							scrlist.Add(si);
 						}
+
 						scrind = (byte)tmpind;
 					}
+
 					Background.layers[i].lineScroll[y] = scrind;
 				}
 			}
+
 			SaveFile("Backgrounds.bin", fn => Background.Write(fn));
+			
 			SaveFile($"Act{StageInfo.actID}.bin", fn => Scene.Write(fn));
 			foreach (var astg in AdditionalScenes)
 				SaveFile($"Act{astg.StageInfo.actID}.bin", fn => astg.Scene.Write(fn));
@@ -656,10 +761,14 @@ namespace SonicRetro.SonLVL.API
 		{
 			string fullpath = Path.Combine(ModFolder, "Data/Stages", StageInfo.folder, name);
 			bool isnew = !File.Exists(fullpath);
-			bool noModExists = (DataFile != null && DataFile.FileExists($"Data/Stages/{StageInfo.folder}/{name}")) || File.Exists($"Data/Stages/{StageInfo.folder}/{name}");
 			action(fullpath);
-			if (isnew && noModExists && ReadFileRawNoMod($"Data/Stages/{StageInfo.folder}/{name}").FastArrayEqual(File.ReadAllBytes(fullpath)))
-				File.Delete(fullpath);
+
+			if (isnew)
+			{
+				var baseFile = ReadFileRawNoMod($"Data/Stages/{StageInfo.folder}/{name}");
+				if (baseFile != null && baseFile.FastArrayEqual(File.ReadAllBytes(fullpath)))
+					File.Delete(fullpath);
+			}
 		}
 
 		public static BitmapBits DrawForeground(Rectangle? section, bool includeObjects, bool includeDebugObjects, bool objectsAboveHighPlane, bool lowPlane, bool highPlane, bool collisionPath1, bool collisionPath2)
@@ -1861,6 +1970,7 @@ namespace SonicRetro.SonLVL.API
 				&& src.visualPlane == other.visualPlane;
 		}
 
+		
 		public static bool HasFreeTiles()
 		{
 			return Enumerable.Range(0, NewTiles.Length).Except(NewChunks.chunkList.SelectMany(a => a.tiles.SelectMany(b => b).Select(c => c.tileIndex)).Select(a => (int)a))
@@ -1883,6 +1993,42 @@ namespace SonicRetro.SonLVL.API
 		{
 			return Enumerable.Range(0, NewChunks.chunkList.Length).Select(a => (ushort)a).Except(Scene.layout.SelectMany(a => a).Union(Background.layers.SelectMany(a => a.layout.SelectMany(b => b))))
 				.Where(c => NewChunks.chunkList[c].tiles.SelectMany(a => a).All(b => b.direction == Tiles128x128.Block.Tile.Directions.FlipNone && b.tileIndex == 0));
+		}
+
+		public static void GetLongestFreeTileStreak(out ushort start, out int length)
+		{
+			// This function is used for art importing, when tiles should be grouped together
+			// (ie you want all ani tiles to be in a straight line, rather than sprinkled across the tile list)
+
+			var freeTiles = GetFreeTiles().ToList();
+			ushort curStart = start = freeTiles[0];
+			int curLength = length = 1;
+
+			// Let's find the longest streak and where it starts
+			for (int i = 1; i < freeTiles.Count; i++)
+			{
+				if (freeTiles[i] == freeTiles[i - 1] + 1)
+					curLength++; // Still goin..
+				else
+				{
+					// Streak broke, let's see if we got a new best
+					if (curLength > length)
+					{
+						length = curLength;
+						start = curStart;
+					}
+
+					// Either way, we gotta reset..
+					curStart = freeTiles[i];
+					curLength = 1;
+				}
+			}
+
+			if (curLength > start)
+			{
+				length = curLength;
+				start = curStart;
+			}
 		}
 
 		public static void CalcAngles(this TileConfig.CollisionMask mask)

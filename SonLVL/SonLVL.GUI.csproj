@@ -54,6 +54,12 @@
     <Compile Include="AddGroupDialog.Designer.cs">
       <DependentUpon>AddGroupDialog.cs</DependentUpon>
     </Compile>
+    <Compile Include="AddParallaxGroupDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AddParallaxGroupDialog.Designer.cs">
+      <DependentUpon>AddParallaxGroupDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="BackgroundColorDialog.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -65,6 +71,12 @@
     </Compile>
     <Compile Include="ChunkBlockEditor.Designer.cs">
       <DependentUpon>ChunkBlockEditor.cs</DependentUpon>
+    </Compile>
+    <Compile Include="CopyCollisionDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="CopyCollisionDialog.Designer.cs">
+      <DependentUpon>CopyCollisionDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="FileSelectDialog.cs">
       <SubType>Form</SubType>
@@ -89,6 +101,12 @@
     </Compile>
     <Compile Include="ImportPalette.Designer.cs">
       <DependentUpon>ImportPalette.cs</DependentUpon>
+    </Compile>
+    <Compile Include="ImportArtDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ImportArtDialog.Designer.cs">
+      <DependentUpon>ImportArtDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="LoadErrorDialog.cs">
       <SubType>Form</SubType>
@@ -225,6 +243,9 @@
     <EmbeddedResource Include="AddGroupDialog.resx">
       <DependentUpon>AddGroupDialog.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="AddParallaxGroupDialog.resx">
+      <DependentUpon>AddParallaxGroupDialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="BackgroundColorDialog.resx">
       <DependentUpon>BackgroundColorDialog.cs</DependentUpon>
     </EmbeddedResource>
@@ -233,6 +254,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="ChunkBlockSearchControl.resx">
       <DependentUpon>ChunkBlockSearchControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CopyCollisionDialog.resx">
+      <DependentUpon>CopyCollisionDialog.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="DrawTileDialog.resx">
       <DependentUpon>DrawTileDialog.cs</DependentUpon>
@@ -260,6 +284,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="ImportProgressControl.resx">
       <DependentUpon>ImportProgressControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ImportArtDialog.resx">
+      <DependentUpon>ImportArtDialog.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="InsertDeleteDialog.resx">
       <DependentUpon>InsertDeleteDialog.cs</DependentUpon>
