@@ -42,9 +42,6 @@ namespace SonicRetro.SonLVL.GUI
 				LevelImgPalette.Entries[LevelData.ColorTransparent] = LevelData.NewPalette[Settings.BackgroundColor.A];
 			else
 				LevelImgPalette.Entries[LevelData.ColorTransparent] = Settings.BackgroundColor;
-			if (invertColorsToolStripMenuItem.Checked)
-				for (int i = 0; i < 256; i++)
-					LevelImgPalette.Entries[i] = LevelImgPalette.Entries[i].Invert();
 			ChunkSelector.Invalidate();
 			DrawChunkPicture();
 			chunkBlockEditor.Invalidate();
@@ -122,6 +119,8 @@ namespace SonicRetro.SonLVL.GUI
 		Dictionary<int, int> objectTypeListMap = new Dictionary<int, int>();
 		readonly UndoSystem undoSystem = new SonLVLUndoSystem();
 
+		private const string scrollFormat = "Position: D4";
+
 		// (just a small workaround for CS1690, aka accessing AddGroupPreview's values directly from another form, namely the Add Parallax Series one)
 		public int PreviewLineSpacing
 		{
@@ -182,7 +181,6 @@ namespace SonicRetro.SonLVL.GUI
 			// First, let's load settings
 			objectsAboveHighPlaneToolStripMenuItem.Checked = Settings.ObjectsAboveHighPlane;
 			hUDToolStripMenuItem.Checked = Settings.ShowHUD;
-			//invertColorsToolStripMenuItem.Checked = Settings.InvertColors;
 			chunkShowLowTilesCheckBox.Checked = lowToolStripMenuItem.Checked = Settings.ViewLowPlane;
 			chunkShowHighTilesCheckBox.Checked = highToolStripMenuItem.Checked = Settings.ViewHighPlane;
 			
@@ -338,7 +336,6 @@ namespace SonicRetro.SonLVL.GUI
 			if (Settings != null)
 			{
 				Settings.ShowHUD = hUDToolStripMenuItem.Checked;
-				//Settings.InvertColors = invertColorsToolStripMenuItem.Checked;
 				if (path1ToolStripMenuItem.Checked)
 					Settings.ViewCollision = CollisionPath.Path1;
 				else if (path2ToolStripMenuItem.Checked)
@@ -628,7 +625,7 @@ namespace SonicRetro.SonLVL.GUI
 			fileToolStripMenuItem.DropDown.Hide();
 			if (loaded && LevelData.ModFolder != null && !saved)
 			{
-				switch (MessageBox.Show(this, "Do you want to save?", Text, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question))
+				switch (MessageBox.Show(this, "Editing the GameConfig will reload the currently open level. Do you want to save?", Text, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question))
 				{
 					case DialogResult.Yes:
 						saveToolStripMenuItem_Click(this, EventArgs.Empty);
@@ -642,7 +639,8 @@ namespace SonicRetro.SonLVL.GUI
 				{
 					loaded = false;
 					LoadMod(Path.Combine(LevelData.ModFolder, "mod.ini"));
-					if (LevelData.StageInfo != null)
+					
+					if (LevelData.StageInfo != null && changeLevelToolStripMenuItem.Enabled)
 					{
 						LevelStuff stuff = levelMenuItems.FirstOrDefault(a => a.Stage.folder == LevelData.StageInfo.folder && a.Stage.actID == LevelData.StageInfo.actID);
 						if (stuff != null)
@@ -819,9 +817,6 @@ namespace SonicRetro.SonLVL.GUI
 			SelectedItems = new List<Entry>();
 			saveToolStripMenuItem.Enabled = LevelData.ModFolder != null;
 			editToolStripMenuItem.Enabled = exportToolStripMenuItem.Enabled = true;
-			if (invertColorsToolStripMenuItem.Checked)
-				for (int i = 0; i < 256; i++)
-					LevelImgPalette.Entries[i] = LevelImgPalette.Entries[i].Invert();
 			objectListBox_SelectedIndexChanged(this, EventArgs.Empty);
 			sfxListBox_SelectedIndexChanged(this, EventArgs.Empty);
 			findNextToolStripMenuItem.Enabled = findPreviousToolStripMenuItem.Enabled = false;
@@ -1531,9 +1526,6 @@ namespace SonicRetro.SonLVL.GUI
 				sfxAddButton.Enabled = true;
 				loaded = true;
 				SelectedItems = new List<Entry>();
-				if (invertColorsToolStripMenuItem.Checked)
-					for (int i = 0; i < 256; i++)
-						LevelImgPalette.Entries[i] = LevelImgPalette.Entries[i].Invert();
 				findNextToolStripMenuItem.Enabled = findPreviousToolStripMenuItem.Enabled = false;
 				savedLayoutSections = new List<LayoutSection>();
 				savedLayoutSectionImages = new List<Bitmap>();
@@ -1596,11 +1588,6 @@ namespace SonicRetro.SonLVL.GUI
 		{
 			objectsAboveHighPlaneToolStripMenuItem.Checked = !objectsAboveHighPlaneToolStripMenuItem.Checked;
 			DrawLevel();
-		}
-
-		private void invertColorsToolStripMenuItem_Click(object sender, EventArgs e)
-		{
-			LevelData_PaletteChangedEvent();
 		}
 
 		private void bgColorToolStripMenuItem_Click(object sender, EventArgs e)
@@ -3696,7 +3683,7 @@ namespace SonicRetro.SonLVL.GUI
 									ParallaxFactor = LevelData.BGScroll[bglayer][i].ParallaxFactor,
 									ScrollSpeed = LevelData.BGScroll[bglayer][i].ScrollSpeed
 								});
-								scrollList.Items.Insert(i + 1, mouse.Y.ToString("D4"));
+								scrollList.Items.Insert(i + 1, string.Format(scrollFormat, mouse.Y));
 								SaveState("Insert Scroll Line");
 								scrollList.SelectedIndex = i + 1;
 								DrawLevel();
@@ -3750,10 +3737,10 @@ namespace SonicRetro.SonLVL.GUI
 									ParallaxFactor = LevelData.BGScroll[bglayer][i].ParallaxFactor,
 									ScrollSpeed = LevelData.BGScroll[bglayer][i].ScrollSpeed
 								});
-								scrollList.Items.Insert(i + 1, mouse.X.ToString("D4"));
+								scrollList.Items.Insert(i + 1, string.Format(scrollFormat, mouse.X));
+								SaveState("Insert Scroll Line");
 								scrollList.SelectedIndex = i + 1;
 								DrawLevel();
-								SaveState("Insert Scroll Line");
 							}
 						}
 						else
@@ -4021,7 +4008,7 @@ namespace SonicRetro.SonLVL.GUI
 									ScrollSpeed = Math.Max(0, scrollSpeed)
 								});
 
-								scrollList.Items.Insert(index++, i.ToString("D4"));
+								scrollList.Items.Insert(index++, string.Format(scrollFormat, i));
 
 								parallaxFactor += dlg.parallaxFactorIncreaseValue.Value / 256;
 								scrollSpeed += dlg.scrollSpeedIncreaseValue.Value / 64;
@@ -4037,7 +4024,7 @@ namespace SonicRetro.SonLVL.GUI
 
 				if (selectedScrollLine != -1)
 				{
-					scrollList.Items[selectedScrollLine] = LevelData.BGScroll[bglayer][selectedScrollLine].StartPos.ToString("D4");
+					scrollList.Items[selectedScrollLine] = string.Format(scrollFormat, LevelData.BGScroll[bglayer][selectedScrollLine].StartPos);
 					scrollOffset.Value = LevelData.BGScroll[bglayer][selectedScrollLine].StartPos;
 					SaveState("Move Scroll Line");
 				}
@@ -4332,6 +4319,8 @@ namespace SonicRetro.SonLVL.GUI
 				double gs = snapObjectsToolStripCheckBoxButton.Checked ? 1 << ObjGrid : 1;
 				foreach (Entry item in objs)
 				{
+					if (LevelData.Scene.entities.Count >= RSDKv3_4.Scene.ENTITY_LIST_SIZE) break;
+					
 					item.X += (short)off.Width;
 					item.Y += (short)off.Height;
 					item.X = (short)(Math.Round(item.X / gs, MidpointRounding.AwayFromZero) * gs);
@@ -6142,6 +6131,8 @@ namespace SonicRetro.SonLVL.GUI
 				Size off = new Size(menuLoc.X * 128, menuLoc.Y * 128);
 				foreach (ObjectEntry obj in section.Objects)
 				{
+					if (LevelData.Scene.entities.Count >= RSDKv3_4.Scene.ENTITY_LIST_SIZE) break;
+					
 					ObjectEntry newent;
 
 					// Manual fixes for when pasting v3 entities into a v4 scene/vice versa..
@@ -6208,6 +6199,8 @@ namespace SonicRetro.SonLVL.GUI
 						Size off = new Size((selection.X + (x * width)) * 128, (selection.Y + (y * height)) * 128);
 						foreach (Entry item in section.Objects)
 						{
+							if (LevelData.Scene.entities.Count >= RSDKv3_4.Scene.ENTITY_LIST_SIZE) break;
+							
 							Entry it2 = item.Clone();
 							it2.X = (short)(it2.X + off.Width);
 							it2.Y = (short)(it2.Y + off.Height);
@@ -6482,7 +6475,7 @@ namespace SonicRetro.SonLVL.GUI
 								if (LevelData.BGScroll[bglayer][i].StartPos > selection.Top * 128)
 								{
 									LevelData.BGScroll[bglayer][i].StartPos += (ushort)(selection.Height * 128);
-									scrollList.Items[i] = LevelData.BGScroll[bglayer][i].StartPos.ToString("D4");
+									scrollList.Items[i] = string.Format(scrollFormat, LevelData.BGScroll[bglayer][i].StartPos);
 								}
 							}
 						}
@@ -6527,7 +6520,7 @@ namespace SonicRetro.SonLVL.GUI
 								if (LevelData.BGScroll[bglayer][i].StartPos > selection.Left * 128)
 								{
 									LevelData.BGScroll[bglayer][i].StartPos += (ushort)(selection.Width * 128);
-									scrollList.Items[i] = LevelData.BGScroll[bglayer][i].StartPos.ToString("D4");
+									scrollList.Items[i] = string.Format(scrollFormat, LevelData.BGScroll[bglayer][i].StartPos);
 								}
 							}
 						}
@@ -6638,7 +6631,7 @@ namespace SonicRetro.SonLVL.GUI
 									if (LevelData.BGScroll[bglayer][i].StartPos >= selection.Bottom * 128)
 									{
 										LevelData.BGScroll[bglayer][i].StartPos -= (ushort)(selection.Height * 128);
-										scrollList.Items[i] = LevelData.BGScroll[bglayer][i].StartPos.ToString("D4");
+										scrollList.Items[i] = string.Format(scrollFormat, LevelData.BGScroll[bglayer][i].StartPos);
 										
 										if (LevelData.BGScroll[bglayer][i].StartPos != LevelData.BGScroll[bglayer][i - 1].StartPos)
 											continue;
@@ -6702,7 +6695,7 @@ namespace SonicRetro.SonLVL.GUI
 									if (LevelData.BGScroll[bglayer][i].StartPos >= selection.Right * 128)
 									{
 										LevelData.BGScroll[bglayer][i].StartPos -= (ushort)(selection.Width * 128);
-										scrollList.Items[i] = LevelData.BGScroll[bglayer][i].StartPos.ToString("D4");
+										scrollList.Items[i] = string.Format(scrollFormat, LevelData.BGScroll[bglayer][i].StartPos);
 
 										if (LevelData.BGScroll[bglayer][i].StartPos != LevelData.BGScroll[bglayer][i - 1].StartPos)
 											continue;
@@ -6779,7 +6772,7 @@ namespace SonicRetro.SonLVL.GUI
 					if (LevelData.BGScroll[bglayer][i].StartPos > selection.Top * 128)
 					{
 						LevelData.BGScroll[bglayer][i].StartPos += (ushort)(selection.Height * 128);
-						scrollList.Items[i] = LevelData.BGScroll[bglayer][i].StartPos.ToString("D4");
+						scrollList.Items[i] = string.Format(scrollFormat, LevelData.BGScroll[bglayer][i].StartPos);
 					}
 				}
 			}
@@ -6829,7 +6822,7 @@ namespace SonicRetro.SonLVL.GUI
 					if (LevelData.BGScroll[bglayer][i].StartPos > selection.Left * 128)
 					{
 						LevelData.BGScroll[bglayer][i].StartPos += (ushort)(selection.Width * 128);
-						scrollList.Items[i] = LevelData.BGScroll[bglayer][i].StartPos.ToString("D4");
+						scrollList.Items[i] = string.Format(scrollFormat, LevelData.BGScroll[bglayer][i].StartPos);
 					}
 				}
 			}
@@ -6880,7 +6873,7 @@ namespace SonicRetro.SonLVL.GUI
 						if (LevelData.BGScroll[bglayer][i].StartPos >= selection.Bottom * 128)
 						{
 							LevelData.BGScroll[bglayer][i].StartPos -= (ushort)(selection.Height * 128);
-							scrollList.Items[i] = LevelData.BGScroll[bglayer][i].StartPos.ToString("D4");
+							scrollList.Items[i] = string.Format(scrollFormat, LevelData.BGScroll[bglayer][i].StartPos);
 
 							if (LevelData.BGScroll[bglayer][i].StartPos != LevelData.BGScroll[bglayer][i - 1].StartPos)
 								continue;
@@ -6947,7 +6940,7 @@ namespace SonicRetro.SonLVL.GUI
 						if (LevelData.BGScroll[bglayer][i].StartPos >= selection.Right * 128)
 						{
 							LevelData.BGScroll[bglayer][i].StartPos -= (ushort)(selection.Width * 128);
-							scrollList.Items[i] = LevelData.BGScroll[bglayer][i].StartPos.ToString("D4");
+							scrollList.Items[i] = string.Format(scrollFormat, LevelData.BGScroll[bglayer][i].StartPos);
 
 							if (LevelData.BGScroll[bglayer][i].StartPos != LevelData.BGScroll[bglayer][i - 1].StartPos)
 								continue;
@@ -8161,7 +8154,7 @@ namespace SonicRetro.SonLVL.GUI
 						scrollList.BeginUpdate();
 						scrollList.Items.Clear();
 						foreach (var item in LevelData.BGScroll[bglayer])
-							scrollList.Items.Add(item.StartPos.ToString("D4"));
+							scrollList.Items.Add(string.Format(scrollFormat, item.StartPos));
 						scrollList.EndUpdate();
 						scrollList.SelectedIndex = 0;
 						break;
@@ -8753,7 +8746,7 @@ namespace SonicRetro.SonLVL.GUI
 					scrollList.BeginUpdate();
 					scrollList.Items.Clear();
 					foreach (var item in LevelData.BGScroll[bglayer])
-						scrollList.Items.Add(item.StartPos.ToString("D4"));
+						scrollList.Items.Add(string.Format(scrollFormat, item.StartPos));
 					scrollList.EndUpdate();
 					scrollList.SelectedIndex = 0;
 					break;
@@ -9030,7 +9023,7 @@ namespace SonicRetro.SonLVL.GUI
 			if (LevelData.BGScroll[bglayer][scrollList.SelectedIndex].StartPos != max - 1)
 				max = LevelData.BGScroll[bglayer][scrollList.SelectedIndex].StartPos + ((max - LevelData.BGScroll[bglayer][scrollList.SelectedIndex].StartPos) / 2);
 			LevelData.BGScroll[bglayer].Insert(scrollList.SelectedIndex + 1, new ScrollData((ushort)max));
-			scrollList.Items.Insert(scrollList.SelectedIndex + 1, max.ToString("D4"));
+			scrollList.Items.Insert(scrollList.SelectedIndex + 1, string.Format(scrollFormat, max));
 			scrollList.SelectedIndex++;
 			SaveState("Insert Scroll Line");
 		}
@@ -9050,7 +9043,7 @@ namespace SonicRetro.SonLVL.GUI
 		{
 			if (!loaded) return;
 			LevelData.BGScroll[bglayer][scrollList.SelectedIndex].StartPos = (ushort)scrollOffset.Value;
-			scrollList.Items[scrollList.SelectedIndex] = LevelData.BGScroll[bglayer][scrollList.SelectedIndex].StartPos.ToString("D4");
+			scrollList.Items[scrollList.SelectedIndex] = string.Format(scrollFormat, LevelData.BGScroll[bglayer][scrollList.SelectedIndex].StartPos);
 			DrawLevel();
 			SaveState("Change Scroll Line Offset");
 		}
