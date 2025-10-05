@@ -262,7 +262,7 @@ namespace SonicRetro.SonLVL.API
 			Gif tilebmp = ReadFile<Gif>(stgfol + "16x16Tiles.gif");
 			if (tilebmp.width >= 16 && tilebmp.height >= 16)
 			{
-				NewTiles = new BitmapBits[tilebmp.height / 16];
+				NewTiles = new BitmapBits[tilebmp.height / 8];
 				for (int i = 0; i < tilebmp.height / 16; i++)
 				{
 					NewTiles[i] = new BitmapBits(16, 16);
