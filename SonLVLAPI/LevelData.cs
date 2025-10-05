@@ -273,8 +273,8 @@ namespace SonicRetro.SonLVL.API
 			}
 			else
 			{
-				NewTiles = new BitmapBits[0x400];
-				for (int i = 0; i < 0x400; i++)
+				NewTiles = new BitmapBits[0x800];
+				for (int i = 0; i < 0x800; i++)
 					NewTiles[i] = new BitmapBits(16, 16);
 
 				NewPalette.Fill(NewPalette[0], 128, 128);
@@ -411,8 +411,8 @@ namespace SonicRetro.SonLVL.API
 			}
 			else
 			{
-				NewTiles = new BitmapBits[0x400];
-				for (int i = 0; i < 0x400; i++)
+				NewTiles = new BitmapBits[0x800];
+				for (int i = 0; i < 0x800; i++)
 					NewTiles[i] = new BitmapBits(16, 16);
 
 				NewPalette.Fill(NewPalette[0], 128, 128);
